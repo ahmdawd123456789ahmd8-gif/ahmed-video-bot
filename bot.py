@@ -220,17 +220,14 @@ def delete_user_messages(user_id, keep_last=None):
     
     messages = user_messages[user_id]
     
-    # إذا كان هناك تحميل نشط، لا تحذف الرسائل
     if user_id in active_downloads and active_downloads[user_id]:
         return
     
     if keep_last is not None and keep_last > 0:
         messages = messages[:-keep_last]
     
-    # حذف مع أنميشن
     for i, msg_id in enumerate(messages):
         try:
-            # تأثير أنميشن متحرك
             if i % 2 == 0:
                 animation = random.choice(DELETE_ANIMATIONS)
                 try:
@@ -489,7 +486,9 @@ def send_file(user_id, file_path, is_video=True):
         bot.send_message(user_id, f"❌ خطأ في الإرسال: {str(e)}")
         return False
 
-# دالة للتحميل مع تتبع التقدم
+# ============================================
+# 📥 دالة التحميل الرئيسية (تم إصلاحها)
+# ============================================
 def download_with_progress(user_id, message_id, url, is_video, media_type, download_id):
     progress_data = {
         'stop': False,
@@ -523,6 +522,7 @@ def download_with_progress(user_id, message_id, url, is_video, media_type, downl
             progress_data['stop'] = True
             progress_data['downloaded'] = progress_data['total']
     
+    # إعدادات yt-dlp الأساسية
     ydl_opts = {
         'outtmpl': f'download_{user_id}_{int(time.time())}.%(ext)s',
         'quiet': True,
@@ -535,44 +535,76 @@ def download_with_progress(user_id, message_id, url, is_video, media_type, downl
     }
     
     platform = get_platform_from_url(url)
+    
+    # إضافة الكوكيز إذا وجدت
     if platform and has_cookies(platform):
         cookie_file = COOKIE_FILES.get(platform)
         if cookie_file:
             ydl_opts['cookiefile'] = cookie_file
             print(f"✅ Using {platform} cookies for user {user_id}")
-    else:
-        print(f"⚠️ No cookies found for {platform}")
     
-    if platform == 'instagram':
+    # ============================================
+    # 🔧 إعدادات خاصة بالمنصات (معدلة - تم إصلاح الخطأ)
+    # ============================================
+    if platform == 'youtube':
+        # إعدادات يوتيوب بدون skip_download
+        ydl_opts['extractor_args'] = {
+            'youtube': {
+                'player_client': ['android', 'web'],
+                'skip_download': ['false'],  # هذا الخيار للتأكد من التحميل
+            }
+        }
+        # استخدام أفضل صيغة للفيديو
+        if is_video:
+            ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+        else:
+            ydl_opts['format'] = 'bestaudio/best'
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+    
+    elif platform == 'instagram':
         ydl_opts['extractor_args'] = {
             'instagram': {
                 'skip_download': ['false'],
             }
         }
+        if is_video:
+            ydl_opts['format'] = 'best[ext=mp4]/best'
+        else:
+            ydl_opts['format'] = 'bestaudio/best'
+    
     elif platform == 'tiktok':
         ydl_opts['extractor_args'] = {
             'tiktok': {
                 'embed': ['false'],
             }
         }
+        if is_video:
+            ydl_opts['format'] = 'best[ext=mp4]/best'
+        else:
+            ydl_opts['format'] = 'bestaudio/best'
+    
     elif platform == 'facebook':
         ydl_opts['extractor_args'] = {
             'facebook': {
                 'prefer_av1': ['false'],
             }
         }
-    elif platform == 'youtube':
-        ydl_opts['extractor_args'] = {
-            'youtube': {
-                'skip_download': ['false'],
-                'player_client': ['android', 'web'],
-            }
-        }
+        if is_video:
+            ydl_opts['format'] = 'best[ext=mp4]/best'
+        else:
+            ydl_opts['format'] = 'bestaudio/best'
     
-    if is_video:
-        ydl_opts['format'] = 'best[ext=mp4]/best'
     else:
-        ydl_opts['format'] = 'bestaudio/best'
+        # لأي منصة أخرى
+        if is_video:
+            ydl_opts['format'] = 'best[ext=mp4]/best'
+        else:
+            ydl_opts['format'] = 'bestaudio/best'
+        ydl_opts['extractor_args'] = {}
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -583,9 +615,10 @@ def download_with_progress(user_id, message_id, url, is_video, media_type, downl
             
             filename = ydl.prepare_filename(info)
             
-            if not is_video and filename:
+            # إذا كان الملف غير موجود، نحاول البحث عنه
+            if not os.path.exists(filename):
                 base_name = os.path.splitext(filename)[0]
-                possible_extensions = ['.mp3', '.m4a', '.webm', '.opus', '.ogg']
+                possible_extensions = ['.mp4', '.mp3', '.m4a', '.webm', '.opus', '.ogg']
                 for ext in possible_extensions:
                     if os.path.exists(f"{base_name}{ext}"):
                         filename = f"{base_name}{ext}"
