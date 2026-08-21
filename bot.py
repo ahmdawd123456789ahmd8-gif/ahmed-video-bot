@@ -10,6 +10,7 @@ import math
 import hashlib
 from datetime import datetime, timedelta
 import random
+import pytz
 
 # ============================================
 # 🔐 قراءة التوكن من متغيرات البيئة
@@ -1337,6 +1338,7 @@ def handle_admin_buttons(call):
             "🍪 يمكن إرسال الكوكيز كملف\n"
             "🗑️ يمكن حذف الكوكيز من البوت\n"
             "🧹 تنظيف تلقائي للرسائل\n"
+            "🕐 توقيت سوريا (Asia/Damascus)\n"
             "🛠️ المطور: أحمد"
         )
         msg = bot.send_message(ADMIN_ID, info_text)
@@ -1379,9 +1381,11 @@ if __name__ == "__main__":
     print("✅ Bot is ready!")
     
     try:
-        bot.send_message(ADMIN_ID, "✅ **تم إعادة تشغيل البوت بنجاح!**\n\n🕐 الوقت: " + time.strftime("%I:%M %p"))
+        syria_tz = pytz.timezone('Asia/Damascus')
+        current_time = datetime.now(syria_tz).strftime("%I:%M %p")
+        bot.send_message(ADMIN_ID, f"✅ **تم إعادة تشغيل البوت بنجاح!**\n\n🕐 الوقت: {current_time} (بتوقيت سوريا)")
     except:
-        pass
+        bot.send_message(ADMIN_ID, "✅ **تم إعادة تشغيل البوت بنجاح!**")
     
     print("📥 Just send any link to download")
     print("🧹 Messages are auto-cleaned with animation!")
@@ -1391,6 +1395,7 @@ if __name__ == "__main__":
     print("⏹️ Stop download button added!")
     print("📢 Advanced broadcast (text, photo, video, audio, file)!")
     print("🔒 Active download protection enabled!")
+    print("🕐 Timezone: Asia/Damascus (UTC+3)")
     
     print("\n🍪 Cookie Status:")
     for platform, filename in COOKIE_FILES.items():
