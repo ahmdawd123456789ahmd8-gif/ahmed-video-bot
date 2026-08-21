@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.part*
+download_*
+cookies_*.txt
+.env
+venv/
+.venv/
+.DS_Store
+Thumbs.db
+*.log
